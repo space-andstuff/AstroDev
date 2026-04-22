@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<!-- saved from url=(0071)https://space-andstuff.github.io/ARISSDashboard/ISS_<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">All times shown in 24-hour local time</div>
+AOS_Calculator.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ISS AOS Finder - Beta</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111827; --panel2:#0f172a; --border:#23314d; --muted:#9fb0cc;
+    --text:#eaf2ff; --accent:#59c3ff; --accent2:#7ee787; --warn:#ffb86c;
+    --pill:#162235; --pillActive:#1f6feb; --shadow:0 18px 40px rgba(0,0,0,.28); --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(circle at top,#13203a 0%,var(--bg) 45%);color:var(--text)}
+  .wrap{max-width:1220px;margin:0 auto;padding:18px 18px 24px}
+  h1{margin:0 0 4px;font-size:28px;letter-spacing:.2px}
+  .sub{color:var(--muted);margin-bottom:14px;font-size:14px}
+  .presets{display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
+  .preset{white-space:nowrap;border:1px solid var(--border);background:var(--pill);color:var(--text);border-radius:999px;padding:10px 14px;cursor:pointer;transition:.18s ease;font-size:14px;box-shadow:var(--shadow)}
+  .preset.active{background:linear-gradient(180deg,#2588ff,var(--pillActive));border-color:#4ea1ff}
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;align-items:start}
+  .stack{display:grid;gap:14px}
+  .card{background:linear-gradient(180deg,rgba(17,24,39,.98),rgba(15,23,42,.98));border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .card h2{margin:0 0 6px;font-size:16px}
+  .hint{margin:0 0 12px;color:var(--muted);font-size:13px}
+  .fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .fields.small{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.2px}
+  .field input,.field textarea{width:100%;border-radius:12px;border:1px solid #30415f;background:#1e2a40; color:#ffffff;color:var(--text);padding:10px 12px;font-size:14px;outline:none}
+  .field input:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(89,195,255,.14)}
+  input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type="number"]{-moz-appearance:textfield}
+  .actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{border:none;border-radius:12px;padding:11px 14px;font-weight:600;cursor:pointer}
+  .btn.primary{background:linear-gradient(180deg,#59c3ff,#2b95ff);color:#051321}
+  .btn.secondary{background:#13203a;color:var(--text);border:1px solid var(--border)}
+  .status{font-size:13px;color:var(--muted)}
+  #map{width:100%;height:360px;border-radius:16px;overflow:hidden;border:1px solid #2c3d59;background:#0b1528}
+  .results{display:grid;gap:10px}
+  .rowResult{display:grid;grid-template-columns:170px 1fr auto;gap:12px;align-items:center;padding:14px 14px;background:#1e2a40; color:#ffffff;border:1px solid #273857;border-radius:14px}
+  .rowResult .label{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+  .rowResult .value{font-size:24px;font-weight:700;letter-spacing:.3px}
+  .rowResult .copy{border:none;border-radius:10px;padding:9px 12px;background:#13203a;color:var(--text);cursor:pointer}
+  .utc .value{color:#b9e7ff}.obs .value{color:#eaf2ff}.qld .value{color:#b7f5c2}
+  .metaGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+  .mini{background:#1e2a40; color:#ffffff;border:1px solid #273857;border-radius:14px;padding:12px}
+  .mini .k{color:var(--muted);font-size:12px;margin-bottom:4px}
+  .mini .v{font-size:15px;font-weight:600}
+  details summary{cursor:pointer;list-style:none;font-weight:700}
+  details summary::-webkit-details-marker{display:none}
+  .footerNote{color:var(--muted);font-size:13px;line-height:1.45}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;transform:translateY(1px)}
+  .errorBox{margin-top:10px;padding:10px 12px;border-radius:12px;background:#2a1010;border:1px solid #6b2e2e;color:#ffd6d6;display:none}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}#map{height:300px}.fields,.fields.small,.metaGrid{grid-template-columns:1fr 1fr}.rowResult{grid-template-columns:1fr}}
+  @media (max-width:620px){.fields,.fields.small,.metaGrid{grid-template-columns:1fr}.wrap{padding:14px}h1{font-size:24px}}
+
+a {
+  color: #9fd3ff !important;
+  text-decoration: none;
+}
+a:hover {
+  color: #c9e7ff !important;
+  text-decoration: underline;
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ISS AOS Finder - Beta</h1>
+  <div class="sub">Find the next ISS AOS for any location using TLE data</div>
+
+  <div class="grid">
+    <div class="stack">
+      <section class="card">
+        <h2>Observer search window</h2>
+        <p class="hint">These start date and time values are from the observer perspective</p>
+
+        <div class="fields">
+          <div class="field"><label for="startDate">Start date</label><input id="startDate" type="date"></div>
+          <div class="field"><label for="startTime">Start time</label><input id="startTime" type="time" step="60"></div>
+          <div class="field"><label for="searchHours">Search hours</label><input id="searchHours" type="number" min="1" max="72" step="1" value="24"></div>
+        </div>
+
+        <div class="fields small" style="margin-top:12px;">
+          <div class="field"><label for="lat">Latitude</label><input id="lat" type="number" min="-90" max="90" step="0.0001"></div>
+          <div class="field"><label for="lon">Longitude</label><input id="lon" type="number" min="-180" max="180" step="0.0001"></div>
+          <div class="field"><label for="height">Height (m)</label><input id="height" type="number" min="-500" max="9000" step="1"></div>
+          <div class="field"><label for="mask">Elevation mask (°)</label><input id="mask" type="number" min="0" max="30" step="0.1" value="0"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="calcBtn">Calculate next AOS</button>
+          <button class="btn secondary" id="setNowBtn">Set to now</button>
+          <button class="btn secondary" id="getMyLocationBtn" type="button">Get my location</button>
+          
+          
+        </div>
+        <div class="errorBox" id="errorBox" style="display: none;">Enter start date and start time.</div><span id="statusText" style="display: none; color: var(--muted);">Done</span>
+      </section>
+
+      <section class="card">
+        <h2 id="aosHeader">AOS results <span style="font-size:12px;color:var(--muted);font-weight:normal;">- All times shown in 24-hour format</span></h2>
+        <div class="results">
+          <div class="rowResult utc"><div class="label">UTC AOS</div><div class="value" id="utcOut">2026-04-20 13:52:29</div><button class="copy" data-copy="utcOut">Copy</button></div>
+          <div class="rowResult obs"><div class="label">Observer AOS</div><div class="value" id="obsOut">2026-04-20 23:52:29</div><button class="copy" data-copy="obsOut">Copy</button></div>
+          <div class="rowResult qld"><div class="label">QLD AOS</div><div class="value" id="qldOut">2026-04-20 23:52:29</div><button class="copy" data-copy="qldOut">Copy</button></div>
+        </div>
+
+        <div class="metaGrid">
+          <div class="mini"><div class="k">AOS azimuth</div><div class="v" id="azOut">219.3°</div></div>
+          <div class="mini"><div class="k">Max elevation</div><div class="v" id="maxElOut">87.2°</div></div>
+          <div class="mini"><div class="k">Observer timezone</div><div class="v" id="tzOut">Australia/Brisbane</div></div>
+          <div class="mini"><div class="k">Pass duration</div><div class="v" id="durOut">10m 53s</div></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Map</h2><div class="hint" style="margin-bottom:10px;">Interactive world map for selecting the observer point.</div>
+      <div id="map" class="leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0" style="position: relative; background: rgb(11, 21, 40);"><div class="leaflet-pane leaflet-map-pane" style="transform: translate3d(0px, 0px, 0px);"><div class="leaflet-pane leaflet-tile-pane"><div class="leaflet-layer " style="z-index: 1; opacity: 1;"><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 20; transform: translate3d(0px, 0px, 0px) scale(1);"><img alt="" src="./ISS AOS Finder - Beta_files/4.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(197px, 44px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/3.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(197px, -212px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/4(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-59px, 44px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/4(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(453px, 44px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/5.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(197px, 300px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/3(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-59px, -212px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/3(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(453px, -212px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/5(1).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-59px, 300px, 0px); opacity: 1;"><img alt="" src="./ISS AOS Finder - Beta_files/5(2).png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(453px, 300px, 0px); opacity: 1;"></div></div></div><div class="leaflet-pane leaflet-overlay-pane"><canvas class="leaflet-zoom-animated" width="624" height="430" style="transform: translate3d(-52px, -36px, 0px); width: 624px; height: 430px;"></canvas></div><div class="leaflet-pane leaflet-shadow-pane"></div><div class="leaflet-pane leaflet-marker-pane"><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive leaflet-marker-draggable" tabindex="0" role="button" style="margin-left: -9px; margin-top: -9px; width: 18px; height: 18px; transform: translate3d(277px, 167px, 0px); z-index: 167;"><div style="width:18px;height:18px;border-radius:50%;background:#ffb86c;border:3px solid #fff;box-shadow:0 0 10px rgba(255,184,108,.45);"></div></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" style="margin-left: -7px; margin-top: -7px; width: 14px; height: 14px; opacity: 1; transform: translate3d(187px, 265px, 0px); z-index: 265;"><div style="width:14px;height:14px;border-radius:50%;background:#4fd1c5;border:2px solid #fff;box-shadow:0 0 10px rgba(79,209,197,.45);"></div></div></div><div class="leaflet-pane leaflet-tooltip-pane"></div><div class="leaflet-pane leaflet-popup-pane"></div><div class="leaflet-proxy leaflet-zoom-animated" style="transform: translate3d(1854.58px, 1158.51px, 0px) scale(4);"></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="https://space-andstuff.github.io/ARISSDashboard/ISS_AOS_Calculator.html#" title="Zoom in" role="button" aria-label="Zoom in" aria-disabled="false"><span aria-hidden="true">+</span></a><a class="leaflet-control-zoom-out" href="https://space-andstuff.github.io/ARISSDashboard/ISS_AOS_Calculator.html#" title="Zoom out" role="button" aria-label="Zoom out" aria-disabled="false"><span aria-hidden="true">−</span></a></div></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-attribution leaflet-control"><a href="https://leafletjs.com/" title="A JavaScript library for interactive maps"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8" class="leaflet-attribution-flag"><path fill="#4C7BE1" d="M0 0h12v4H0z"></path><path fill="#FFD500" d="M0 4h12v3H0z"></path><path fill="#E0BC00" d="M0 7h12v1H0z"></path></svg> Leaflet</a> <span aria-hidden="true">|</span> © OpenStreetMap © CARTO</div></div></div></div>
+      <div class="legend">
+        <span><span class="dot" style="background:#ffb86c;"></span>Observer</span>
+        <span><span class="dot" style="background:#4fd1c5;"></span>ISS sub-point at calculated AOS</span>
+        <span><span class="dot" style="background:#59c3ff;"></span>Approx visibility footprint at AOS</span>
+      </div>
+    </section>
+  </div>
+
+  <div style="margin-top:14px; display:grid; gap:12px;">
+    <details class="card">
+      <summary>Current TLE</summary>
+      <div class="footerNote" style="margin-top:10px;">
+        Live KEps updates in this page use <strong>CelesTrak</strong> by default. AMSAT is a secondary/manual option and uses the stored fallback TLE if the browser blocks the live AMSAT fetch. The current values below can still be edited manually in this page.
+        <div style="margin-top:6px;"><strong>CelesTrak live ISS TLE:</strong> <a href="https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE" target="_blank" class="mono">https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE</a></div>
+        <div style="margin-top:6px;"><strong>AMSAT nasa.all reference:</strong> <a href="https://www.amsat.org/amsat/ftp/keps/current/nasa.all" target="_blank" class="mono">https://www.amsat.org/amsat/ftp/keps/current/nasa.all</a></div>
+        <div id="tleUpdatedText" style="margin-top:6px;"></div>
+        <div id="tleEpochText" style="margin-top:6px;">TLE epoch: unavailable</div>
+        <div class="actions" style="margin-top:10px;">
+          <button class="btn secondary" id="getCelestrakTleBtn" type="button" onclick="window.manualLoadCelestrakTle && window.manualLoadCelestrakTle()">Get CelesTrak TLE</button>
+          <button class="btn secondary" id="getAmsatTleBtn" type="button" onclick="window.manualLoadAmsatTle && window.manualLoadAmsatTle()">Get AMSAT TLE</button>
+        </div>
+        <div id="tleActionStatus" class="status" style="margin-top:6px;">TLE actions ready.</div>
+        <div class="status" style="margin-top:4px;">AMSAT button may fail in browser due to site restrictions.</div>
+      </div>
+      <div class="fields" style="margin-top:12px;">
+        <div class="field" style="grid-column:1 / -1;"><label for="tleName">Name</label><input id="tleName" type="text" value="ISS"></div>
+        <div class="field" style="grid-column:1 / -1;"><label for="tle1">Line 1</label><textarea id="tle1" rows="2">1 25544U 98067A   26109.48996335  .00010082  00000-0  19194-3 0  9993</textarea></div>
+        <div class="field" style="grid-column:1 / -1;"><label for="tle2">Line 2</label><textarea id="tle2" rows="2">2 25544  51.6329 230.6068 0006631 325.6576  34.3983 15.48833250562656</textarea></div>
+      </div>
+    </details>
+
+
+    <details class="card">
+      <summary>Data source and AOS calculation method</summary>
+      <div class="footerNote" style="margin-top:10px;">
+        <div style="margin-bottom:12px;">
+          <strong>KEps online sources</strong><br>
+          Default live source in this page is CelesTrak for browser compatibility:<br>
+          <a href="https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE" target="_blank" class="mono">https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE</a>
+          <br><br>
+          Direct AMSAT nasa.all reference:
+          <br>
+          <a href="https://www.amsat.org/amsat/ftp/keps/current/nasa.all" target="_blank" class="mono">https://www.amsat.org/amsat/ftp/keps/current/nasa.all</a>
+          <br><br>
+          If AMSAT is selected in the browser it may fail due to cross-origin restrictions, in which case the page falls back to CelesTrak or the embedded TLE.
+          <br><br>
+          You can also manually paste or edit the TLE values in this page.
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <strong>High-level method</strong><br>
+          1. Convert the selected observer location into geodetic coordinates.<br>
+          2. Convert the observer start date and start time into UTC.<br>
+          3. Use the entered TLE with <span class="mono">satellite.js</span> (SGP4 propagation) to step the ISS forward in time.<br>
+          4. At each step, compute the ISS look angles from the observer: azimuth, range, and elevation.<br>
+          5. Detect the first time when elevation crosses above the chosen mask angle. That crossing is the AOS.<br>
+          6. Refine that crossing with a binary search to get the result down to about the second.
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <strong>Readable formulas</strong><br>
+          <div style="margin-top:6px;">
+            <span class="mono">Observer → geodetic:</span> latitude, longitude, height<br>
+            <span class="mono">TLE + time → ISS position:</span> SGP4 propagation<br>
+            <span class="mono">ISS position → look angles:</span> azimuth, elevation, range<br>
+            <span class="mono">AOS condition:</span> elevation(t) crosses above elevation mask
+          </div>
+        </div>
+
+        <div>
+          <strong>Advanced math view</strong><br>
+          <div style="margin-top:8px; display:grid; gap:10px;">
+            <div>
+              <div class="mono">r_eci(t) = SGP4(TLE, t)</div>
+              <div>Use the TLE and the SGP4 orbit model to estimate where the ISS is at time <span class="mono">t</span> in an Earth-centered inertial frame.</div>
+            </div>
+            <div>
+              <div class="mono">r_ecf(t) = ECI_to_ECF(r_eci(t), GMST(t))</div>
+              <div>Rotate that ISS position into the Earth-fixed frame, so it lines up with the rotating Earth and ground locations.</div>
+            </div>
+            <div>
+              <div class="mono">ρ(t) = r_ecf(t) - r_obs,ecf</div>
+              <div>Find the line-of-sight vector from the observer on the ground to the ISS by subtracting the observer position from the satellite position.</div>
+            </div>
+            <div>
+              <div class="mono">[az(t), el(t), range(t)] = LookAngles(ρ(t), φ_obs, λ_obs, h_obs)</div>
+              <div>Convert that line-of-sight vector into the observer-friendly values: azimuth, elevation, and slant range.</div>
+            </div>
+            <div>
+              <div class="mono">AOS = first t such that el(t) ≥ el_mask and el(t-Δt) &lt; el_mask</div>
+              <div>The AOS is the first moment when the ISS elevation rises above your chosen elevation mask.</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            The page uses coarse stepping first, then a binary search on the bracketed crossing interval:
+          </div>
+          <div style="margin-top:8px; display:grid; gap:10px;">
+            <div>
+              <div class="mono">if el(t₁) &lt; el_mask and el(t₂) ≥ el_mask, then AOS ∈ [t₁, t₂]</div>
+              <div>Once the code finds a time window where the elevation goes from below the mask to above it, the true AOS must be somewhere inside that interval.</div>
+            </div>
+            <div>
+              <div class="mono">repeatedly bisect interval until desired time precision is reached</div>
+              <div>The interval is halved again and again until the AOS time is refined down to roughly second-level precision.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Useful links</summary>
+      <div class="footerNote" style="margin-top:10px; display:grid; gap:8px;">
+        <div><strong>Live ISS tracking map:</strong><br><a href="https://live.ariss.org/dashboard/esamap/" target="_blank" class="mono">https://live.ariss.org/dashboard/esamap/</a></div>
+        <div><strong>HAMTV Receiver Stations:</strong><br><a href="https://live.ariss.org/hamtv/" target="_blank" class="mono">https://live.ariss.org/hamtv/</a></div>
+        <div><strong>Heavens Above ISS:</strong><br><a href="https://heavens-above.com/PassSummary.aspx?satid=25544" target="_blank" class="mono">https://heavens-above.com/PassSummary.aspx?satid=25544</a></div>
+        <div><strong>ISS TLE:</strong><br><a href="https://www.amsat.org/amsat/ftp/keps/current/nasa.all" target="_blank" class="mono">https://www.amsat.org/amsat/ftp/keps/current/nasa.all</a></div>
+      </div>
+    </details>
+
+    <div class="card footerNote">
+      Notes: this page uses satellite.js for propagation and a Leaflet map canvas. Times are shown as UTC, observer time, and QLD time.
+    </div>
+    <div class="footerNote" style="text-align:center; padding:4px 0 0;">
+      Designed by: Stephen Vassallo (VK4SJV)
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+(function(){
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function utcStamp(d){
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()) + ' ' +
+           pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()) + ' UTC';
+  }
+  async function fetchCelestrakIssTle(){
+    const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE', {cache:'no-store'});
+    if (!res.ok) throw new Error('CelesTrak fetch failed (' + res.status + ')');
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    if (lines.length < 3) throw new Error('CelesTrak ISS TLE not found');
+    return {name: lines[0], l1: lines[1], l2: lines[2]};
+  }
+  const AMSAT_FALLBACK_TLE = {
+  name: 'ISS',
+  l1: '1 25544U 98067A   26110.78039753  .00009753  00000-0  18580-3 0  9991',
+  l2: '2 25544  51.6325 224.2241 0006702 330.9223  29.1391 15.48857372562859'
+};
+
+async function fetchAmsatIssTle(){
+    const res = await fetch('https://www.amsat.org/amsat/ftp/keps/current/nasa.all', {cache:'no-store'});
+    if (!res.ok) throw new Error('AMSAT fetch failed (' + res.status + ')');
+    const text = await res.text();
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length - 2; i++){
+      const name = (lines[i] || '').trim();
+      const l1 = (lines[i+1] || '').trim();
+      const l2 = (lines[i+2] || '').trim();
+      if (/^ISS(\s*\(ZARYA\))?$/i.test(name) && /^1\s+25544/.test(l1) && /^2\s+25544/.test(l2)){
+        return {name, l1, l2};
+      }
+    }
+    throw new Error('ISS TLE not found in AMSAT nasa.all');
+  }
+  function setText(msg){
+    var el = document.getElementById('tleUpdatedText');
+    if (el) el.textContent = msg;
+  }
+  function setActionStatus(msg, bad){
+    var el = document.getElementById('tleActionStatus');
+    if (el){
+      el.textContent = msg;
+      el.style.color = bad ? '#ffb4b4' : 'var(--muted)';
+    }
+  }
+  function setFields(tle){
+    var n = document.getElementById('tleName');
+    var l1 = document.getElementById('tle1');
+    var l2 = document.getElementById('tle2');
+    if (n) n.value = tle.name;
+    if (l1) l1.value = tle.l1;
+    if (l2) l2.value = tle.l2;
+  }
+  async function loadTle(source){
+    const stampStart = utcStamp(new Date());
+    if (source === 'amsat'){
+      setActionStatus('Loading AMSAT TLE...');
+      try{
+        const tle = await fetchAmsatIssTle();
+        setFields(tle);
+        setText('Loaded into page: ' + utcStamp(new Date()) + ' (AMSAT)');
+        setActionStatus('AMSAT TLE loaded: ' + utcStamp(new Date()), false);
+        return true;
+      }catch(e){
+        setActionStatus('AMSAT live fetch failed in browser. Using stored AMSAT TLE instead.', true);
+        return false;
+      }
+    } else {
+      setActionStatus('Loading CelesTrak TLE...');
+      try{
+        const tle = await fetchCelestrakIssTle();
+        setFields(tle);
+        setText('Loaded into page: ' + utcStamp(new Date()) + ' (CelesTrak)');
+        setActionStatus('CelesTrak TLE loaded: ' + utcStamp(new Date()), false);
+        return true;
+      }catch(e){
+        setActionStatus('CelesTrak TLE load failed. Keeping current TLE in page.', true);
+        return false;
+      }
+    }
+  }
+  window.manualLoadCelestrakTle = function(){ return loadTle('celestrak'); };
+  window.manualLoadAmsatTle = function(){ return loadTle('amsat'); };
+
+  window.addEventListener('DOMContentLoaded', async function(){
+    try { updateTleInfo('Initial'); } catch(e) {}
+          var epochLine = document.getElementById('tleEpochText');
+      var l1Field = document.getElementById('tle1');
+      if (epochLine && l1Field){
+        try {
+          var m = (l1Field.value || '').match(/^1\s+25544\S*\s+\S+\s+(\d{2})(\d{3}\.\d+)/);
+          if (m){
+            var yy = parseInt(m[1], 10), doy = parseFloat(m[2]);
+            var year = yy >= 57 ? 1900 + yy : 2000 + yy;
+            var di = Math.floor(doy), frac = doy - di;
+            var dt = new Date(Date.UTC(year,0,1,0,0,0) + ((di-1)*86400000) + Math.round(frac*86400000));
+            function p(n){ return String(n).padStart(2,'0'); }
+            epochLine.textContent = 'TLE epoch: ' + dt.getUTCFullYear() + '-' + p(dt.getUTCMonth()+1) + '-' + p(dt.getUTCDate()) + ' ' + p(dt.getUTCHours()) + ':' + p(dt.getUTCMinutes()) + ':' + p(dt.getUTCSeconds()) + ' UTC';
+          } else {
+            epochLine.textContent = 'TLE epoch: unavailable';
+          }
+        } catch(e) { epochLine.textContent = 'TLE epoch: unavailable'; }
+      }
+      var epochEl = document.getElementById('tleEpochText');
+      var l1el = document.getElementById('tle1');
+      if (epochEl && l1el) {
+        try { epochEl.textContent = (function(){
+          var m = (l1el.value || '').match(/^1\s+25544\S*\s+\S+\s+(\d{2})(\d{3}\.\d+)/);
+          if (!m) return 'TLE epoch: unavailable';
+          var yy = parseInt(m[1],10), doy = parseFloat(m[2]), year = yy >= 57 ? 1900 + yy : 2000 + yy;
+          var dayInt = Math.floor(doy), frac = doy - dayInt;
+          var dt = new Date(Date.UTC(year,0,1,0,0,0) + ((dayInt-1)*86400000) + Math.round(frac*86400000));
+          function p(n){ return String(n).padStart(2,'0'); }
+          return 'TLE epoch: ' + dt.getUTCFullYear() + '-' + p(dt.getUTCMonth()+1) + '-' + p(dt.getUTCDate()) + ' ' + p(dt.getUTCHours()) + ':' + p(dt.getUTCMinutes()) + ':' + p(dt.getUTCSeconds()) + ' UTC';
+        })(); } catch(e) {}
+      }
+    await loadTle('celestrak');
+  });
+})();
+</script>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
+<script>
+(function(){
+const SAT = window.satellite;
+const errorBox = document.getElementById('errorBox');
+function showError(msg){
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+}
+function hideError(){
+  errorBox.style.display = 'none';
+}
+if (!window.L){
+  showError('Leaflet map library did not load.');
+  return;
+}
+if (!SAT){
+  showError('Satellite propagation library did not load.');
+  return;
+}
+
+const presets = {
+  mackay: {name:'Mackay (VK4SJV)', lat:-21.17383730562303, lon:149.05586196687796, height:40, tz:'Australia/Brisbane', view:[-23,146], zoom:3},
+  mackayiss: {name:'Mackay (VK4ISS)', lat:-21.09588888888889, lon:149.18187222222222, height:13, tz:'Australia/Brisbane', view:[-23,146], zoom:3},
+  italy:  {name:'Italy (IK1SLD)', lat:45.1152, lon:8.4523,   height:118, tz:'Europe/Rome',        view:[42,11], zoom:3},
+  nh:     {name:'New Hampshire (AB1OC)', lat:42.7120, lon:-71.5900, height:110, tz:'America/New_York', view:[41,-72], zoom:3},
+  perth:  {name:'Perth (VK6MJ)', lat:-32.4885, lon:115.7533, height:8, tz:'Australia/Perth', view:[-32,116], zoom:4},
+  custom: {name:'Custom', lat:-21.17383730562303, lon:149.05586196687796, height:40, tz:Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', view:[10,20], zoom:2}
+};
+
+let currentPreset = 'mackay';
+
+function updateAosHeader(){
+  let label = '';
+  const p = presets[currentPreset];
+  if (currentPreset !== 'custom'){
+    label = p.name;
+  } else {
+    const lat = parseFloat(latInput.value||0).toFixed(3);
+    const lon = parseFloat(lonInput.value||0).toFixed(3);
+    label = `Lat ${lat}, Lon ${lon}`;
+  }
+  const h = document.getElementById('aosHeader');
+  if (h) h.textContent = `AOS for ${label}`;
+}
+
+let currentObserverTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+const $ = id => document.getElementById(id);
+const latInput = $('lat'), lonInput = $('lon'), heightInput = $('height');
+const startDateInput = $('startDate'), startTimeInput = $('startTime');
+const searchHoursInput = $('searchHours'), maskInput = $('mask');
+const statusText = $('statusText');
+latInput.value = '';
+lonInput.value = '';
+heightInput.value = '';
+latInput.value = '';
+lonInput.value = '';
+heightInput.value = '';
+
+const map = L.map('map', { zoomControl:true, worldCopyJump:true, preferCanvas:true }).setView([15, 20], 2);
+
+// Simple grayscale web basemap.
+const mapEl = document.getElementById('map');
+mapEl.style.background = '#0b1528';
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd',
+  maxZoom: 20,
+  attribution: '&copy; OpenStreetMap &copy; CARTO'
+}).on('tileerror', function(){
+  const fallback = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  });
+  fallback.addTo(map);
+}).addTo(map);
+
+const observerIcon = L.divIcon({
+  className:'',
+  html:'<div style="width:18px;height:18px;border-radius:50%;background:#ffb86c;border:3px solid #fff;box-shadow:0 0 10px rgba(255,184,108,.45);"></div>',
+  iconSize:[18,18], iconAnchor:[9,9]
+});
+const issIcon = L.divIcon({
+  className:'',
+  html:'<div style="width:14px;height:14px;border-radius:50%;background:#4fd1c5;border:2px solid #fff;box-shadow:0 0 10px rgba(79,209,197,.45);"></div>',
+  iconSize:[14,14], iconAnchor:[7,7]
+});
+
+const observerMarker = L.marker([0, 0], { draggable:true, icon:observerIcon }).addTo(map);
+let issMarker = L.marker([0,0], { icon:issIcon, opacity:0 }).addTo(map);
+let footprint = L.circle([0,0], { radius:0, color:'#59c3ff', weight:2, fillColor:'#59c3ff', fillOpacity:0.08, opacity:0 }).addTo(map);
+let linkLine = L.polyline([], { color:'#8ec9ff', weight:1.8, opacity:0.65, dashArray:'5,6' }).addTo(map);
+
+function partsFor(date, tz){
+  const dtf = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+  const out = {};
+  dtf.formatToParts(date).forEach(p => { if (p.type !== 'literal') out[p.type] = p.value; });
+  return out;
+}
+function setStartToNow(){
+  const p = partsFor(new Date(), currentObserverTz || 'UTC');
+  startDateInput.value = `${p.year}-${p.month}-${p.day}`;
+  startTimeInput.value = `${p.hour}:${p.minute}`;
+}
+function presetButtonState(name){
+  document.querySelectorAll('.preset').forEach(btn => btn.classList.toggle('active', btn.dataset.preset === name));
+}
+function applyPreset(name, reframe=true){
+  const keepDate = startDateInput.value;
+  const keepTime = startTimeInput.value;
+
+  const p = presets[name];
+  currentPreset = name;
+  currentObserverTz = p.tz;
+  latInput.value = p.lat.toFixed(4);
+  lonInput.value = p.lon.toFixed(4);
+  heightInput.value = String(p.height);
+  observerMarker.setLatLng([p.lat, p.lon]);
+  presetButtonState(name);
+  if (reframe) map.setView(p.view, p.zoom);
+
+  // Preserve the user's scenario date/time exactly as entered.
+  if (keepDate) startDateInput.value = keepDate;
+  if (keepTime) startTimeInput.value = keepTime;
+  // tz updated only after calculation
+}
+function markCustomFromInputs(){
+  currentPreset = 'custom';
+  currentObserverTz = presets.custom.tz;
+  presetButtonState('custom');
+  // tz updated only after calculation
+}
+// No preset buttons in this version
+
+function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+function updateObserverFromInputs(){
+  const lat = clamp(parseFloat(latInput.value || 0), -90, 90);
+  const lon = clamp(parseFloat(lonInput.value || 0), -180, 180);
+  latInput.value = lat.toFixed(4);
+  lonInput.value = lon.toFixed(4);
+  observerMarker.setLatLng([lat, lon]);
+}
+[latInput, lonInput, heightInput].forEach(inp => inp.addEventListener('wheel', e => e.target.blur(), {passive:true}));
+latInput.addEventListener('change', () => { markCustomFromInputs(); updateObserverFromInputs(); });
+lonInput.addEventListener('change', () => { markCustomFromInputs(); updateObserverFromInputs(); });
+heightInput.addEventListener('change', () => { if (currentPreset !== 'custom') markCustomFromInputs(); });
+observerMarker.on('dragend', () => {
+  const ll = observerMarker.getLatLng();
+  latInput.value = ll.lat.toFixed(4);
+  lonInput.value = ll.lng.toFixed(4);
+  markCustomFromInputs();
+});
+map.on('click', e => {
+  observerMarker.setLatLng(e.latlng);
+  latInput.value = e.latlng.lat.toFixed(4);
+  lonInput.value = e.latlng.lng.toFixed(4);
+  markCustomFromInputs();
+});
+
+function localInputToUTC(dateStr, timeStr, tz){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const [hh,mm] = timeStr.split(':').map(Number);
+  let guess = new Date(Date.UTC(y, m-1, d, hh, mm, 0));
+  for (let i=0; i<4; i++){
+    const p = partsFor(guess, tz);
+    const currentMinutes = (+p.hour)*60 + (+p.minute);
+    const targetMinutes = hh*60 + mm;
+    const dayCurrent = Date.UTC(+p.year, +p.month - 1, +p.day);
+    const dayTarget = Date.UTC(y, m - 1, d);
+    const dayDiffMinutes = Math.round((dayTarget - dayCurrent) / 60000);
+    const deltaMinutes = (targetMinutes - currentMinutes) + dayDiffMinutes;
+    if (deltaMinutes === 0) break;
+    guess = new Date(guess.getTime() + deltaMinutes * 60000);
+  }
+  return guess;
+}
+function formatInTZ(date, tz){
+  const p = partsFor(date, tz);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+}
+function fmtHMS(seconds){
+  if (!isFinite(seconds) || seconds < 0) return '—';
+  const h = Math.floor(seconds/3600), m = Math.floor((seconds%3600)/60), s = Math.floor(seconds%60);
+  return (h ? `${h}h ` : '') + `${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+}
+function gmst(date){ return SAT.gstime(date); }
+function geodeticFor(date, satrec){
+  const pv = SAT.propagate(satrec, date);
+  if (!pv.position) return null;
+  return SAT.eciToGeodetic(pv.position, gmst(date));
+}
+function lookAnglesFor(date, satrec, observerGd){
+  const pv = SAT.propagate(satrec, date);
+  if (!pv.position) return null;
+  const ecf = SAT.eciToEcf(pv.position, gmst(date));
+  return SAT.ecfToLookAngles(observerGd, ecf);
+}
+function elevationDegFor(date, satrec, observerGd){
+  const look = lookAnglesFor(date, satrec, observerGd);
+  if (!look) return -999;
+  return SAT.radiansToDegrees(look.elevation);
+}
+function azimuthDegFor(date, satrec, observerGd){
+  const look = lookAnglesFor(date, satrec, observerGd);
+  if (!look) return null;
+  const az = SAT.radiansToDegrees(look.azimuth);
+  return ((az % 360) + 360) % 360;
+}
+function footprintRadiusMeters(issHeightKm){
+  const Re = 6371;
+  const alpha = Math.acos(Re / (Re + issHeightKm));
+  return Re * alpha * 1000;
+}
+function findNextAOS(satrec, observerGd, startUtc, maxHours, maskDeg){
+  const end = new Date(startUtc.getTime() + maxHours * 3600 * 1000);
+  let t = new Date(startUtc), prevTime = new Date(t), prevElev = elevationDegFor(t, satrec, observerGd);
+  const coarseStepMs = 30 * 1000;
+  while (t <= end){
+    t = new Date(t.getTime() + coarseStepMs);
+    const elev = elevationDegFor(t, satrec, observerGd);
+    if (prevElev < maskDeg && elev >= maskDeg){
+      let a = prevTime, b = t;
+      for (let i=0; i<30; i++){
+        const mid = new Date((a.getTime()+b.getTime())/2);
+        const me = elevationDegFor(mid, satrec, observerGd);
+        if (me >= maskDeg) b = mid; else a = mid;
+      }
+      return b;
+    }
+    prevElev = elev;
+    prevTime = new Date(t);
+  }
+  return null;
+}
+function findLOS(satrec, observerGd, aosUtc, maxHours, maskDeg){
+  const end = new Date(aosUtc.getTime() + Math.min(3, maxHours) * 3600 * 1000);
+  let t = new Date(aosUtc), prevTime = new Date(t), prevElev = elevationDegFor(t, satrec, observerGd);
+  const stepMs = 30 * 1000;
+  while (t <= end){
+    t = new Date(t.getTime() + stepMs);
+    const elev = elevationDegFor(t, satrec, observerGd);
+    if (prevElev >= maskDeg && elev < maskDeg){
+      let a = prevTime, b = t;
+      for (let i=0; i<30; i++){
+        const mid = new Date((a.getTime()+b.getTime())/2);
+        const me = elevationDegFor(mid, satrec, observerGd);
+        if (me < maskDeg) b = mid; else a = mid;
+      }
+      return b;
+    }
+    prevElev = elev;
+    prevTime = new Date(t);
+  }
+  return null;
+}
+function findMaxElevation(satrec, observerGd, aosUtc, losUtc){
+  if (!aosUtc || !losUtc) return null;
+  let bestT = aosUtc, bestE = -999, t = new Date(aosUtc);
+  while (t <= losUtc){
+    const e = elevationDegFor(t, satrec, observerGd);
+    if (e > bestE){ bestE = e; bestT = new Date(t); }
+    t = new Date(t.getTime() + 5000);
+  }
+  return {time:bestT, elev:bestE};
+}
+function updateOutput(utcDate){
+  const obsTz = currentObserverTz || 'UTC';
+  $('utcOut').textContent = formatInTZ(utcDate, 'UTC');
+  $('obsOut').textContent = formatInTZ(utcDate, obsTz);
+  $('qldOut').textContent = formatInTZ(utcDate, 'Australia/Brisbane');
+}
+function setStatus(text, bad=false){
+  statusText.textContent = text;
+  statusText.style.color = bad ? '#ffb4b4' : 'var(--muted)';
+}
+
+function getMyLocation(){
+  hideError();
+  setStatus('Getting your location…');
+  if (!navigator.geolocation){
+    setStatus('Browser geolocation is not supported.', true);
+    showError('Browser geolocation is not supported.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const alt = position.coords.altitude;
+      const height = (typeof alt === 'number' && isFinite(alt)) ? Math.round(alt) : 0;
+      latInput.value = lat.toFixed(4);
+      lonInput.value = lon.toFixed(4);
+      heightInput.value = String(height);
+      observerMarker.setLatLng([lat, lon]);
+      map.setView([lat, lon], 8);
+      currentPreset = 'custom';
+      currentObserverTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      updateAosHeader();
+      setStatus('Location loaded.');
+    },
+    (err) => {
+      const msg = err && err.message ? err.message : 'Could not get browser location.';
+      setStatus(msg, true);
+      showError(msg);
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
+
+async function calculate(){
+  hideError();
+  try{
+    setStatus('Calculating…');
+    const satrec = SAT.twoline2satrec($('tle1').value.trim(), $('tle2').value.trim());
+    const lat = parseFloat(latInput.value), lon = parseFloat(lonInput.value), heightM = parseFloat(heightInput.value || 0);
+    if (!isFinite(lat) || !isFinite(lon)) throw new Error('Enter latitude and longitude, or use Get my location.');
+    if (!isFinite(lat) || !isFinite(lon)) throw new Error('Select a preset or enter latitude and longitude.');
+    const maskDeg = parseFloat(maskInput.value || 0), searchHours = parseFloat(searchHoursInput.value || 24);
+    if (!startDateInput.value || !startTimeInput.value) throw new Error('Enter start date and start time.');
+    const startUtc = localInputToUTC(startDateInput.value, startTimeInput.value, currentObserverTz || 'UTC');
+    const observerGd = { longitude: SAT.degreesToRadians(lon), latitude: SAT.degreesToRadians(lat), height: heightM / 1000 };
+    const aos = findNextAOS(satrec, observerGd, startUtc, searchHours, maskDeg);
+    if (!aos) throw new Error(`No crossing above ${maskDeg}° found within ${searchHours} hours.`);
+    const los = findLOS(satrec, observerGd, aos, searchHours, maskDeg);
+    const maxEl = los ? findMaxElevation(satrec, observerGd, aos, los) : null;
+    const az = azimuthDegFor(aos, satrec, observerGd);
+
+    updateOutput(aos);
+    updateAosHeader();
+    $('azOut').textContent = az == null ? '—' : `${az.toFixed(1)}°`;
+    $('maxElOut').textContent = maxEl ? `${maxEl.elev.toFixed(1)}°` : '—';
+    $('durOut').textContent = los ? fmtHMS((los - aos)/1000) : '—';
+    $('tzOut').textContent = currentObserverTz || 'UTC';
+
+    const geo = geodeticFor(aos, satrec);
+    if (geo){
+      const issLat = SAT.radiansToDegrees(geo.latitude);
+      const issLon = SAT.radiansToDegrees(geo.longitude);
+      issMarker.setLatLng([issLat, issLon]).setOpacity(1);
+      footprint.setLatLng([issLat, issLon]).setRadius(footprintRadiusMeters(geo.height)).setStyle({opacity:1, fillOpacity:0.08});
+      linkLine.setLatLngs([[lat, lon], [issLat, issLon]]);
+    }
+    setStatus('Done');
+  }catch(err){
+    setStatus(err.message || 'Calculation failed.', true);
+    showError(err.message || 'Calculation failed.');
+  }
+}
+
+function updateTleLoadedText(sourceLabel){
+  const el = $('tleUpdatedText');
+  if (!el) return;
+  const label = sourceLabel || 'Embedded TLE';
+  el.textContent = `Loaded into page: ${formatUtcStamp(new Date())} (${label})`;
+  updateTleEpochText($('tle1') ? $('tle1').value.trim() : '');
+}
+
+function parseTleEpoch(line1){
+  const clean = (line1 || '').trim();
+  const m = clean.match(/^1\s+25544\S*\s+\S+\s+(\d{2})(\d{3}\.\d+)/);
+  if (!m) return null;
+  const yy = parseInt(m[1], 10);
+  const doy = parseFloat(m[2]);
+  const year = yy >= 57 ? 1900 + yy : 2000 + yy;
+  const dayInt = Math.floor(doy);
+  const frac = doy - dayInt;
+  const base = Date.UTC(year, 0, 1, 0, 0, 0);
+  return new Date(base + ((dayInt - 1) * 86400000) + Math.round(frac * 86400000));
+}
+
+function updateTleInfo(sourceLabel){
+  const epochEl = document.getElementById('tleEpochText');
+  if (epochEl){
+    const l1 = document.getElementById('tle1');
+    const dt = parseTleEpoch(l1 ? l1.value.trim() : '');
+    epochEl.textContent = dt ? `TLE epoch: ${formatUtcStamp(dt)}` : 'TLE epoch: unavailable';
+  }
+}
+
+function formatUtcStamp(date){
+  const y = date.getUTCFullYear();
+  const mo = String(date.getUTCMonth()+1).padStart(2,'0');
+  const d = String(date.getUTCDate()).padStart(2,'0');
+  const h = String(date.getUTCHours()).padStart(2,'0');
+  const mi = String(date.getUTCMinutes()).padStart(2,'0');
+  const s = String(date.getUTCSeconds()).padStart(2,'0');
+  return `${y}-${mo}-${d} ${h}:${mi}:${s} UTC`;
+}
+async function fetchAmsatIssTle(){
+  const res = await fetch('https://www.amsat.org/amsat/ftp/keps/current/nasa.all', {cache:'no-store'});
+  if (!res.ok) throw new Error(`AMSAT fetch failed (${res.status})`);
+  const text = await res.text();
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length - 2; i++){
+    const name = (lines[i] || '').trim();
+    const l1 = (lines[i+1] || '').trim();
+    const l2 = (lines[i+2] || '').trim();
+    if (/^(ISS|ISS \(ZARYA\))$/i.test(name) && /^1 25544/.test(l1) && /^2 25544/.test(l2)){
+      return {name, l1, l2};
+    }
+  }
+  throw new Error('ISS TLE not found in AMSAT nasa.all');
+}
+async function fetchCelestrakIssTle(){
+  const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE', {cache:'no-store'});
+  if (!res.ok) throw new Error(`CelesTrak fetch failed (${res.status})`);
+  const text = await res.text();
+  const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  if (lines.length < 3) throw new Error('CelesTrak ISS TLE not found');
+  return {name: lines[0], l1: lines[1], l2: lines[2]};
+}
+async function updateKeps(){
+  hideError();
+  const kepsStatus = $('kepsStatus');
+  const source = $('kepsSource') ? $('kepsSource').value : 'celestrak';
+  kepsStatus.textContent = 'Updating KEps...';
+  kepsStatus.style.color = 'var(--muted)';
+
+  async function applyLoadedTle(tle, sourceLabel, prefix=''){
+    $('tleName').value = tle.name;
+    $('tle1').value = tle.l1;
+    $('tle2').value = tle.l2;
+    updateTleLoadedText(sourceLabel);
+    kepsStatus.textContent = `${prefix}KEps updated from ${sourceLabel}: ${formatUtcStamp(new Date())}`;
+    kepsStatus.style.color = 'var(--muted)';
+  }
+
+  try{
+    if (source === 'celestrak'){
+      try{
+        const tle = await fetchCelestrakIssTle();
+        await applyLoadedTle(tle, 'CelesTrak');
+        return;
+      }catch(primaryErr){
+        try{
+          const tle = await fetchAmsatIssTle();
+          await applyLoadedTle(tle, 'AMSAT', 'CelesTrak unavailable, ');
+          return;
+        }catch(fallbackErr){
+          updateTleInfo('Embedded TLE');
+          kepsStatus.textContent = 'KEps update failed. Using embedded TLE in page.';
+          kepsStatus.style.color = '#ffb4b4';
+          return;
+        }
+      }
+    }
+
+    if (source === 'amsat'){
+      try{
+        const tle = await fetchAmsatIssTle();
+        await applyLoadedTle(tle, 'AMSAT');
+        return;
+      }catch(primaryErr){
+        try{
+          const tle = await fetchCelestrakIssTle();
+          await applyLoadedTle(tle, 'CelesTrak', 'AMSAT unavailable, ');
+          return;
+        }catch(fallbackErr){
+          updateTleInfo('Embedded TLE');
+          kepsStatus.textContent = 'KEps update failed. Using embedded TLE in page.';
+          kepsStatus.style.color = '#ffb4b4';
+          return;
+        }
+      }
+    }
+
+    updateTleInfo('Embedded TLE');
+    kepsStatus.textContent = 'KEps update failed. Unknown source selection.';
+    kepsStatus.style.color = '#ffb4b4';
+  }catch(err){
+    updateTleInfo('Embedded TLE');
+    kepsStatus.textContent = 'KEps update failed. Using embedded TLE in page.';
+    kepsStatus.style.color = '#ffb4b4';
+  }
+}
+
+$('calcBtn').addEventListener('click', calculate);
+$('setNowBtn').addEventListener('click', setStartToNow);
+$('getMyLocationBtn').addEventListener('click', getMyLocation);
+$('updateKepsBtn').addEventListener('click', updateKeps);
+
+
+document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', async () => {
+  const text = $(btn.dataset.copy).textContent;
+  try{ await navigator.clipboard.writeText(text); const old = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = old, 900); }catch{}
+}));
+
+// No preset selected on first load
+})();
+</script>
+
+
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+
+  const AMSAT_FALLBACK_TLE = {
+    name: 'ISS',
+    l1: '1 25544U 98067A   26110.78039753  .00009753  00000-0  18580-3 0  9991',
+    l2: '2 25544  51.6325 224.2241 0006702 330.9223  29.1391 15.48857372562859'
+  };
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function formatUtcStamp(date){
+    return date.getUTCFullYear() + '-' + pad(date.getUTCMonth()+1) + '-' + pad(date.getUTCDate()) + ' ' +
+           pad(date.getUTCHours()) + ':' + pad(date.getUTCMinutes()) + ':' + pad(date.getUTCSeconds()) + ' UTC';
+  }
+
+  function parseTleEpoch(line1){
+    const clean = (line1 || '').trim();
+    // Example: 1 25544U 98067A   26110.78039753 ...
+    const m = clean.match(/^1\s+25544\S*\s+\S+\s+(\d{2})(\d{3}\.\d+)/);
+    if (!m) return null;
+    const yy = parseInt(m[1], 10);
+    const doy = parseFloat(m[2]);
+    const year = yy >= 57 ? 1900 + yy : 2000 + yy;
+    const dayInt = Math.floor(doy);
+    const frac = doy - dayInt;
+    const base = Date.UTC(year, 0, 1, 0, 0, 0);
+    return new Date(base + ((dayInt - 1) * 86400000) + Math.round(frac * 86400000));
+  }
+
+  function updateEpochFromFields(){
+    const el = $('tleEpochText');
+    const l1 = $('tle1');
+    if (!el || !l1) return;
+    const dt = parseTleEpoch(l1.value);
+    el.textContent = dt ? ('TLE epoch: ' + formatUtcStamp(dt)) : 'TLE epoch: unavailable';
+  }
+
+  function setTleActionStatus(message, isBad){
+    const el = $('tleActionStatus');
+    if (!el) return;
+    el.textContent = message;
+    el.style.color = isBad ? '#ffb4b4' : 'var(--muted)';
+  }
+
+  async function fetchCelestrakIssTle(){
+    const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE', {cache:'no-store'});
+    if (!res.ok) throw new Error('CelesTrak fetch failed (' + res.status + ')');
+    const text = await res.text();
+    const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    if (lines.length < 3) throw new Error('CelesTrak ISS TLE not found');
+    return {name: lines[0], l1: lines[1], l2: lines[2]};
+  }
+
+  async function fetchAmsatIssTle(){
+    const res = await fetch('https://www.amsat.org/amsat/ftp/keps/current/nasa.all', {cache:'no-store'});
+    if (!res.ok) throw new Error('AMSAT fetch failed (' + res.status + ')');
+    const text = await res.text();
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length - 2; i++){
+      const name = (lines[i] || '').trim();
+      const l1 = (lines[i+1] || '').trim();
+      const l2 = (lines[i+2] || '').trim();
+      if (/^ISS(\s*\(ZARYA\))?$/i.test(name) && /^1\s+25544/.test(l1) && /^2\s+25544/.test(l2)){
+        return {name, l1, l2};
+      }
+    }
+    throw new Error('ISS TLE not found in AMSAT nasa.all');
+  }
+
+  function applyTle(tle){
+    if ($('tleName')) $('tleName').value = tle.name;
+    if ($('tle1')) $('tle1').value = tle.l1;
+    if ($('tle2')) $('tle2').value = tle.l2;
+    updateEpochFromFields();
+  }
+
+  window.manualLoadCelestrakTle = async function(){
+    try{
+      setTleActionStatus('Loading CelesTrak TLE...', false);
+      const tle = await fetchCelestrakIssTle();
+      applyTle(tle);
+      setTleActionStatus('CelesTrak TLE loaded: ' + formatUtcStamp(new Date()), false);
+    }catch(err){
+      setTleActionStatus('CelesTrak TLE load failed. Keeping current TLE in page.', true);
+      updateEpochFromFields();
+    }
+  };
+
+  window.manualLoadAmsatTle = async function(){
+    try{
+      setTleActionStatus('Loading AMSAT TLE...', false);
+      const tle = await fetchAmsatIssTle();
+      applyTle(tle);
+      setTleActionStatus('AMSAT TLE loaded: ' + formatUtcStamp(new Date()), false);
+    }catch(err){
+      applyTle(AMSAT_FALLBACK_TLE);
+      setTleActionStatus('AMSAT live fetch failed in browser. Using stored AMSAT TLE instead.', true);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    updateEpochFromFields();
+    // Make the selector clearly default to CelesTrak if present
+    if ($('kepsSource')) $('kepsSource').value = 'celestrak';
+
+    // Auto-load CelesTrak once on page load, but don't hammer the endpoint.
+    window.manualLoadCelestrakTle().catch(function(){});
+  });
+})();
+</script>
+
+</body></html>
